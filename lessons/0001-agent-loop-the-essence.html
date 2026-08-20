@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 01 — Agent Loop 的本质</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<div class="course-meta">
+  <span>用 LLM 构建 Coding Agent</span>
+  <span>Lesson 01</span>
+</div>
+
+<h1>Agent Loop 的本质</h1>
+<p class="subtitle">为什么一个 coding agent，剥到最里层，就是「LLM 在一个循环里调用工具」</p>
+
+<p>
+你的目标是从零写一个 coding agent。在写任何代码之前，你需要一张能钉在脑子里的心智图。
+这节课只讲一件事，但它是后面所有课的地基：<strong>agent 的核心不是一个复杂系统，而是一个简单的循环。</strong>
+</p>
+
+<h2>先破除一个误解</h2>
+<p>
+很多人以为 "AI agent" 是某种庞大、神秘的架构。Anthropic 在他们那篇被广泛引用的文章里给了一个反直觉但极其重要的判断：
+最成功的 agent 实现，用的都是<strong>简单、可组合的模式，而不是复杂框架</strong>。
+</p>
+
+<div class="key">
+  <p style="margin:0">
+  他们对 agent 的定义只有一句话（值得你背下来）：<br><br>
+  <strong>“Agents are typically just LLMs using tools based on environmental feedback in a loop.”</strong><br><br>
+  Agent 通常就是：LLM 根据环境反馈，在一个循环里使用工具。
+  </p>
+</div>
+
+<p>
+拆开这句话里的四个词，你就拿到了整张地图：
+</p>
+
+<ul>
+  <li><strong>LLM</strong> —— 大脑。它负责「想」：现在该做什么。</li>
+  <li><strong>tools（工具）</strong> —— 手脚。LLM 自己不能读文件、跑命令，工具是它伸向世界的接口。</li>
+  <li><strong>environmental feedback（环境反馈）</strong> —— 眼睛。工具执行后返回的结果（文件内容、报错、命令输出），让 LLM 看到「刚才那步的后果」。</li>
+  <li><strong>loop（循环）</strong> —— 心跳。上面三件事不是做一次就完，而是反复进行，直到任务完成。</li>
+</ul>
+
+<h2>Loop 长什么样</h2>
+<p>
+把上面四个词按时间顺序排开，就是 agent loop。以「帮我修复这个 bug」为例：
+</p>
+
+<div class="loop-diagram">
+  <div class="loop-step">
+    <span class="loop-num">1</span>
+    <span><strong>LLM 思考并决定行动</strong> —— 模型读到任务与当前上下文，输出「我要调用 <code>read_file</code> 读一下 utils.ts」。这一步产出的不是最终答案，而是一个<em>工具调用请求</em>。</span>
+  </div>
+  <div class="loop-arrow">↓</div>
+  <div class="loop-step">
+    <span class="loop-num">2</span>
+    <span><strong>你的代码执行工具</strong> —— 注意：执行工具的是<em>你写的程序</em>，不是 LLM。LLM 只是「点单」，真正去读文件的是你的循环代码。</span>
+  </div>
+  <div class="loop-arrow">↓</div>
+  <div class="loop-step">
+    <span class="loop-num">3</span>
+    <span><strong>把结果喂回给 LLM</strong> —— 文件内容作为「环境反馈」追加进对话，再次发给模型。这是 <code>ground truth</code>：模型据此判断进展。</span>
+  </div>
+  <div class="loop-arrow">↺</div>
+  <div class="loop-back">回到第 1 步：LLM 拿着新信息，再想下一步</div>
+</div>
+
+<p>
+就这样转圈：想 → 做 → 看结果 → 再想。每一圈 LLM 都掌握着「下一步做什么」的决定权。
+直到某一圈，模型判断任务完成，不再请求工具，而是直接输出最终回答 —— 循环结束。
+</p>
+
+<div class="key">
+  <p style="margin:0">
+  <strong>这就是 agent 和普通 chatbot 的唯一本质区别。</strong>
+  Chatbot 是「问一次，答一次」。Agent 是「在循环里，自己决定要转多少圈、每圈调什么工具」。
+  循环里那个「谁决定下一步」的答案是<strong>模型自己</strong> —— 这就是 “agentic” 一词的全部含义。
+  </p>
+</div>
+
+<h2>为什么这对你（写 TS agent）很重要</h2>
+<p>
+Anthropic 明确建议：<strong>先直接用 LLM API，别急着上框架</strong>。因为「很多模式几行代码就能实现」，
+而框架会用抽象层盖住底层的 prompt 和响应，反而更难调试。
+</p>
+<p>
+对你意味着：你完全有能力从零写出这个 loop。它在 TypeScript 里的骨架，粗略看就是一个
+<code>while</code> 循环 —— 循环体里调一次 LLM API，看它是否要求调用工具，若要就执行并把结果塞回消息列表，然后继续下一轮。
+后面几节课我们会把这个骨架一行行填出来。今天你只需要记住这个<em>形状</em>。
+</p>
+
+<div class="aside">
+一个常见的初学者困惑，先给你打预防针：<strong>LLM 从不自己执行工具。</strong>
+它只是在回复里说「我想调用这个工具、参数是这些」。真正执行、拿到结果、决定要不要把结果给它看的，
+永远是你写的循环代码。这个「控制权在你手里」的事实，是后面理解安全、权限、错误恢复的前提。
+</div>
+
+<div class="primary-source">
+  <div class="label">主资源 · 读这一篇</div>
+  <p style="margin:0.5rem 0 0">
+  <a href="https://www.anthropic.com/research/building-effective-agents">Anthropic — Building Effective Agents</a><br>
+  <span style="font-size:0.9rem;color:var(--ink-soft)">
+  本课的心智图直接来自这篇。先只读开头到 “What are agents?” 和 “Agents” 那一节即可（约 10 分钟），
+  重点体会那句 “just LLMs using tools ... in a loop”。后面的各种 workflow 模式先跳过，我们下一课会用到。
+  </span>
+  </p>
+</div>
+
+<h2>快速回忆（闭卷，先别翻上面）</h2>
+<p>做完这几题，就算这一课过关。答错没关系 —— 努力回忆本身就是在建立长期记忆。</p>
+
+<div class="quiz" data-answer="2">
+  <div class="quiz-q">1. 在 agent loop 里，谁真正执行工具（比如读文件）？</div>
+  <button class="quiz-opt">大语言模型在内部直接执行</button>
+  <button class="quiz-opt">工具服务器自动完成执行</button>
+  <button class="quiz-opt">你写的循环代码负责执行</button>
+  <div class="quiz-feedback"
+       data-correct="对。LLM 只发出调用请求，执行工具、拿结果的是你的循环代码，控制权始终在你手里。"
+       data-wrong="再想想。LLM 只「点单」，真正动手执行工具的是你写的循环代码。"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <div class="quiz-q">2. agent 与普通 chatbot 最本质的区别是什么？</div>
+  <button class="quiz-opt">agent 使用的模型参数量更大</button>
+  <button class="quiz-opt">agent 在循环里自己决定下一步</button>
+  <button class="quiz-opt">agent 的回答速度明显更快</button>
+  <div class="quiz-feedback"
+       data-correct="对。区别不在模型大小或速度，而在于「循环里由模型自己决定下一步」这一点。"
+       data-wrong="再想想。区别不在模型大小或速度，而在于循环中由模型自主决定下一步。"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <div class="quiz-q">3. loop 里「环境反馈」指的是什么？</div>
+  <button class="quiz-opt">工具执行后返回给模型的结果</button>
+  <button class="quiz-opt">用户对回答给出的评分反馈</button>
+  <button class="quiz-opt">模型内部生成的思考链草稿</button>
+  <div class="quiz-feedback"
+       data-correct="对。环境反馈是工具执行后的结果（文件内容、报错、命令输出），是模型判断进展的 ground truth。"
+       data-wrong="再想想。环境反馈是工具执行后返回的结果，模型据此判断刚才那步的后果。"></div>
+</div>
+
+<div class="ask-teacher">
+  <strong>卡住了？有疑问？</strong> 我是你的老师 —— 随时回到对话里问我。
+  比如「那 loop 会不会一直转下去停不下来？」「工具调用请求在 API 里长什么样？」
+  这些正是下一课的内容，但现在问也完全可以。
+</div>
+
+<div class="lesson-nav">
+  <span>· 第一课 ·</span>
+  <span>下一课：Workflow vs Agent，何时才真需要循环</span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
