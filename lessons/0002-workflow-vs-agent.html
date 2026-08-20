@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 02 — Workflow vs Agent：何时才真需要循环</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .vs-table { border-collapse: collapse; width: 100%; margin: 1.4rem 0; font-size: 0.92rem; }
+  .vs-table th, .vs-table td { border: 1px solid var(--rule); padding: 0.6rem 0.8rem; text-align: left; vertical-align: top; }
+  .vs-table th { background: var(--accent-soft); font-weight: 700; }
+  .vs-table td:first-child { font-weight: 700; white-space: nowrap; }
+  .ladder { background: var(--loop-soft); border: 1px solid #cfdde8; border-radius: 8px; padding: 1.2rem 1.4rem; margin: 1.6rem 0; }
+  .ladder ol { margin: 0; padding-left: 1.3rem; }
+  .ladder li { padding: 0.3rem 0; }
+</style>
+</head>
+<body>
+
+<div class="course-meta">
+  <span>用 LLM 构建 Coding Agent</span>
+  <span>Lesson 02</span>
+</div>
+
+<h1>Workflow vs Agent</h1>
+<p class="subtitle">何时才真的需要那个循环 —— 以及何时不该用它</p>
+
+<p>
+第一课你已经知道：agent 的本质是「LLM 在循环里根据环境反馈调用工具」。
+这节课回答一个更早、更重要的问题：<strong>什么时候你才真的需要这个循环？</strong>
+写 coding agent 的人常犯的第一个错，就是一上来就上循环、上框架，而其实一个简单方案就够了。
+</p>
+
+<h2>一个词：agentic systems，两个分支</h2>
+<p>
+Anthropic 把所有「让 LLM 干活的系统」统称为 <strong>agentic systems</strong>，但在架构上划出一条关键分界线：
+</p>
+
+<div class="key">
+  <p style="margin:0 0 0.8rem">
+  <strong>Workflow（工作流）</strong>：LLM 和工具被<strong>预定义好的代码路径</strong>编排。
+  切几步、每步干什么、按什么顺序走 —— 都是你写死在代码里的。
+  </p>
+  <p style="margin:0">
+  <strong>Agent（智能体）</strong>：LLM <strong>动态地自己指挥流程</strong>、自己决定用什么工具，
+  在「如何完成任务」上保有控制权。
+  </p>
+</div>
+
+<p>
+分界线只有一句话：<strong>「下一步做什么」是谁决定的？</strong>
+写在你代码里的 <code>if/else</code> 和固定步骤 → workflow；由模型每一轮自己判断 → agent。
+第一课那个 <code>while</code> 循环之所以是 agent，正因为循环里<strong>模型自己</strong>决定要不要再调工具、调哪个。
+</p>
+
+<h2>两者的取舍</h2>
+<table class="vs-table">
+  <tr><th></th><th>Workflow</th><th>Agent</th></tr>
+  <tr><td>流程由谁定</td><td>你的代码（预定义）</td><td>模型（运行时动态）</td></tr>
+  <tr><td>给你什么</td><td>可预测性、一致性</td><td>灵活性、自主决策</td></tr>
+  <tr><td>适合</td><td>定义明确、步骤能预测的任务</td><td>开放式、步骤数无法预测的任务</td></tr>
+  <tr><td>代价</td><td>不够灵活，遇到没写到的情况就卡住</td><td>成本更高、可能错误累积、需要信任模型的判断</td></tr>
+</table>
+
+<div class="aside">
+关键直觉：<strong>agent 用延迟和成本，换任务表现和灵活性。</strong>
+只有当这个交换划算时才做。很多任务里它并不划算。
+</div>
+
+<h2>先别急着上循环：复杂度阶梯</h2>
+<p>
+Anthropic 给的核心建议是：<strong>先找最简单的方案，只在确实需要时才增加复杂度。</strong>
+顺着这个阶梯，从下往上爬，能不上一层就不上：
+</p>
+
+<div class="ladder">
+  <ol>
+    <li><strong>单次 LLM 调用</strong>（配上检索和几个示例）—— 大多数应用到这层就够了。</li>
+    <li><strong>Workflow</strong> —— 任务需要多步但路径固定时，用预定义流程。可预测、好调试。</li>
+    <li><strong>Agent</strong> —— 只有当路径<strong>无法预先写死</strong>、需要模型在多轮里自主决策时，才上循环。</li>
+  </ol>
+</div>
+
+<div class="key">
+  <p style="margin:0">
+  一句话决策：<strong>如果你能把步骤画成一张固定流程图，就用 workflow；
+  如果连有几步、每步干嘛都要看具体输入才知道，才需要 agent。</strong>
+  </p>
+</div>
+
+<h2>那 5 种 workflow 模式呢？</h2>
+<p>
+Anthropic 那篇文章的主体，就是在讲 workflow 怎么落地的 5 种可组合模式：
+Prompt Chaining、Routing、Parallelization、Orchestrator-Workers、Evaluator-Optimizer。
+这些你在前面的讨论里已经过了一遍 —— 这里不重复，做成了一张速查卡随时翻：
+</p>
+
+<div class="primary-source">
+  <div class="label">配套参考 · 已备好</div>
+  <p style="margin:0.5rem 0 0">
+  <a href="../reference/workflow-patterns.html">Workflow 模式速查卡</a><br>
+  <span style="font-size:0.9rem;color:var(--ink-soft)">
+  5 种模式的结构图、何时用、例子、选择表，以及「逻辑依赖 vs 执行并行」「省钱选串行」等要点。
+  </span>
+  </p>
+</div>
+
+<h2>两个模式，正通向 agent</h2>
+<p>
+5 种模式里有两个，形状已经很接近 agent，值得你特别记住 —— 它们是 workflow 和 agent 之间的过渡带：
+</p>
+
+<ul>
+  <li>
+    <strong>Orchestrator-Workers</strong> —— 中心 LLM <em>运行时</em>动态拆解任务、分派、综合。
+    Anthropic 直接点名<strong>编码产品</strong>是典型场景：要改几个文件、每个怎么改，只有看了需求才知道，没法写死。
+    它和「并行化」长得像，但子任务是<strong>动态决定</strong>的 —— 这一步「动态」就是滑向 agent 的关键。
+  </li>
+  <li>
+    <strong>Evaluator-Optimizer</strong> —— 一个 LLM 生成、另一个评估给反馈，在<strong>循环</strong>里反复打磨。
+    它已经有循环了 —— 但注意：这个循环的结构（生成→评估→再生成）是<strong>你写死的</strong>。
+    agent 的循环则是模型自己驱动的。差别就在这。
+  </li>
+</ul>
+
+<div class="key">
+  <p style="margin:0">
+  <strong>workflow 的循环 vs agent 的循环</strong>：Evaluator-Optimizer 也有循环，但「转几圈、每圈干嘛」由你的代码定；
+  agent 的循环里，这些由<strong>模型</strong>定。有没有循环不是分界线 —— <strong>循环里谁做决定</strong>才是。
+  </p>
+</div>
+
+<h2>Coding agent 属于哪一类？</h2>
+<p>
+回到你的 mission。一个像 opencode / Claude Code 那样的 coding agent，属于<strong>真正的 agent</strong>。因为：
+</p>
+<ul>
+  <li>用户说「修复这个 bug」时，<strong>没人能预先知道</strong>要读几个文件、改哪几处、跑几次测试。</li>
+  <li>每一步都依赖上一步的<strong>环境反馈</strong>（报错、测试结果），下一步做什么得当场判断。</li>
+  <li>步骤数完全开放 —— 可能 3 步搞定，也可能 20 步。这正是「无法写死路径」的开放式任务。</li>
+</ul>
+<p>
+这也是为什么 Anthropic 说编码是 agent 的绝佳场景：代码可以<strong>自动验证</strong>（跑测试），
+agent 能拿测试结果当反馈迭代，问题空间结构清晰，输出质量可客观衡量 —— 循环需要的「ground truth」它天然就有。
+</p>
+
+<div class="aside">
+但别忘了阶梯：即使在 coding 领域，也不是所有功能都要 agent。
+「把这段代码翻译成另一种语言」这种一步到位的任务，单次调用就够，硬套 agent 反而更慢更贵。
+<strong>agent 留给那些「步骤无法预测」的开放式任务。</strong>
+</div>
+
+<h2>三条心法（贯穿全文）</h2>
+<div class="key">
+<ol style="margin:0; padding-left:1.2rem">
+  <li><strong>能简单就别复杂</strong> —— 从阶梯最低层开始，只在简单方案不够时才往上爬。</li>
+  <li><strong>透明</strong> —— 明确展示 agent 的规划步骤，别让它变黑盒（这也是为什么先别急着上框架）。</li>
+  <li><strong>精心设计工具接口(ACI)</strong> —— agent 的能力上限，很大程度由工具的定义和文档质量决定。这是后面几课的重点。</li>
+</ol>
+</div>
+
+<div class="primary-source">
+  <div class="label">主资源 · 读这一篇（后半段）</div>
+  <p style="margin:0.5rem 0 0">
+  <a href="https://www.anthropic.com/research/building-effective-agents">Anthropic — Building Effective Agents</a><br>
+  <span style="font-size:0.9rem;color:var(--ink-soft)">
+  这次读 "When (and when not) to use agents"、"Agents" 和 "Summary" 三节（约 10 分钟）。
+  重点体会「先简单、按需加复杂度」这条主线，和上面的复杂度阶梯对上。
+  </span>
+  </p>
+</div>
+
+<h2>快速回忆（闭卷）</h2>
+<p>做完这几题就算过关。努力回忆本身就是在建立长期记忆。</p>
+
+<div class="quiz" data-answer="1">
+  <div class="quiz-q">1. workflow 和 agent 最本质的分界线是什么？</div>
+  <button class="quiz-opt">agent 一定会用到更多的工具</button>
+  <button class="quiz-opt">流程由代码定还是由模型定</button>
+  <button class="quiz-opt">agent 必然比 workflow 更准确</button>
+  <div class="quiz-feedback"
+       data-correct="对。分界线是「下一步谁决定」：预定义代码路径是 workflow，模型运行时自主决定是 agent。"
+       data-wrong="再想想。分界线不在工具多少或准确率，而在于流程由代码预定义还是由模型动态决定。"></div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <div class="quiz-q">2. 按复杂度阶梯，遇到新任务应该优先考虑什么？</div>
+  <button class="quiz-opt">先搭一个多步的 agent 循环</button>
+  <button class="quiz-opt">先引入一个成熟的框架</button>
+  <button class="quiz-opt">先试最简单的单次调用</button>
+  <div class="quiz-feedback"
+       data-correct="对。从阶梯最低层起：单次调用 → workflow → agent，只在简单方案不够时才往上爬。"
+       data-wrong="再想想。核心建议是能简单就别复杂，先试单次 LLM 调用，不够再逐层加复杂度。"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <div class="quiz-q">3. 为什么 coding agent 属于「真正的 agent」而非 workflow？</div>
+  <button class="quiz-opt">要改几步、怎么改无法预先写死</button>
+  <button class="quiz-opt">因为写代码这件事非常复杂</button>
+  <button class="quiz-opt">因为它必须使用大参数模型</button>
+  <div class="quiz-feedback"
+       data-correct="对。开放式任务：要读几个文件、改哪几处、跑几次测试都无法预定义，得靠模型看环境反馈当场决定。"
+       data-wrong="再想想。关键不在「复杂」或「模型大」，而在于步骤路径无法预先写死，必须由模型动态决定。"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <div class="quiz-q">4. Evaluator-Optimizer 也有循环，它和 agent 的循环差在哪？</div>
+  <button class="quiz-opt">前者速度更快、成本更低</button>
+  <button class="quiz-opt">前者循环结构由代码写死</button>
+  <button class="quiz-opt">前者完全不需要调用工具</button>
+  <div class="quiz-feedback"
+       data-correct="对。有没有循环不是分界线；Evaluator-Optimizer 的循环结构由代码定，agent 的循环由模型驱动决定。"
+       data-wrong="再想想。区别不在速度或工具，而在于循环里「谁决定转几圈、每圈干嘛」——代码 vs 模型。"></div>
+</div>
+
+<div class="ask-teacher">
+  <strong>卡住了？有疑问？</strong> 随时回到对话问我。
+  比如「orchestrator-workers 用 TS 大概怎么写？」「我这个功能到底该用 workflow 还是 agent？」
+  下一课我们开始钻进 LLM API 本身：一次请求里到底发生了什么。
+</div>
+
+<div class="lesson-nav">
+  <span>← L01 Agent Loop 的本质</span>
+  <span>下一课：LLM API 再入门 →</span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

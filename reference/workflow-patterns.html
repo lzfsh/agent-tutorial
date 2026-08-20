@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>参考 · Workflow 模式速查卡</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  /* 速查卡专用：紧凑排版 + ASCII 图 */
+  .diagram {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    background: var(--loop-soft);
+    border: 1px solid #cfdde8;
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--loop);
+  }
+  .pattern { margin: 2rem 0; padding-top: 0.5rem; }
+  .pattern-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: var(--loop);
+    padding: 0.15rem 0.55rem;
+    border-radius: 3px;
+    vertical-align: middle;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--rule); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 700; }
+  .when { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="course-meta">
+  <span>用 LLM 构建 Coding Agent</span>
+  <span>Reference · Workflow 模式</span>
+</div>
+
+<h1>Workflow 模式速查卡</h1>
+<p class="subtitle">基于 Anthropic《Building Effective Agents》· 5 种可组合模式的压缩参考</p>
+
+<div class="key">
+  <p style="margin:0">
+  <strong>Workflow</strong> = 预定义好的<strong>代码路径</strong>：切几刀、每步干什么、按什么顺序走，都写死在你的代码里。
+  模型只在每个格子里干活，<strong>不决定流程走向</strong>。这是它与 <strong>agent</strong>（模型自己决定下一步）的根本区别。
+  </p>
+</div>
+
+<h2>地基：Augmented LLM</h2>
+<p>所有 workflow 的基本积木：一个 LLM 单元，外挂三样能力。后面每次 LLM 调用都假设具备它们。</p>
+<div class="diagram">        ┌─ retrieval  检索：查外部知识
+LLM ────┼─ tools      工具：调函数 / API
+        └─ memory     记忆：记住信息</div>
+
+<!-- 1 -->
+<div class="pattern">
+<h2>1. Prompt Chaining <span class="pattern-tag">提示链</span></h2>
+<div class="diagram">输入 → LLM调用1 → [gate 检查] → LLM调用2 → 输出</div>
+<p><span class="when">何时用：</span>任务能干净地拆成<strong>固定顺序的子步骤</strong>。用"多步、每步更简单"换更高准确率（牺牲延迟）。步骤间可加程序化关卡(gate)做检查。</p>
+<p><strong>例子：</strong>先写营销文案 → 再翻译；先写大纲 → 检查大纲合格 → 再写正文。</p>
+</div>
+
+<!-- 2 -->
+<div class="pattern">
+<h2>2. Routing <span class="pattern-tag">路由</span></h2>
+<div class="diagram">           ┌─ 类型A → 专用 prompt A
+输入 → 分类器 ┼─ 类型B → 专用 prompt B
+           └─ 类型C → 专用 prompt C</div>
+<p><span class="when">何时用：</span>输入有<strong>明显不同的类别、各自最好分开处理</strong>，且分类本身能做准。好处是关注点分离——不用一个万能 prompt 硬扛所有输入（优化 A 会拖累 B）。</p>
+<p><strong>例子：</strong>客服分流（咨询/退款/技术支持各走各的）；简单问题路由到便宜小模型、难问题路由到大模型省成本。</p>
+</div>
+
+<!-- 3 -->
+<div class="pattern">
+<h2>3. Parallelization <span class="pattern-tag">并行化</span></h2>
+<div class="diagram">      ┌→ LLM(子任务1) ┐
+输入 ─┼→ LLM(子任务2) ┼→ 代码汇总 → 输出
+      └→ LLM(子任务3) ┘</div>
+<p><span class="when">何时用：</span>子任务能拆开并行以提速，或需要多视角/多次尝试提高置信度。让<strong>每个考量点交给独立调用</strong>，各自专注，通常好过一个调用全揽。两个变体：</p>
+<ul>
+  <li><strong>Sectioning（分片）</strong> — 切成<strong>互相独立</strong>的子任务并行跑。例：护栏（一实例回答、一实例筛查违规）；自动评估（每个调用评一个维度）。</li>
+  <li><strong>Voting（投票）</strong> — <strong>同一任务</strong>跑多次综合判断。例：多 prompt 从不同角度审代码找漏洞；内容审核用多票 + 不同阈值平衡误报漏报。</li>
+</ul>
+<div class="aside">
+逻辑依赖 ≠ 执行串行。护栏和核心回答只依赖同一输入、互不依赖彼此输出，所以<strong>可以</strong>并行。
+最终是否采用核心结果依赖护栏结论——那是<em>结果</em>依赖。<br>
+省钱 → 改<strong>串行</strong>：小模型护栏先过滤，被挡下的就不花大模型的钱；甚至用规则/moderation API 代替 LLM 护栏。<br>
+低延迟 → <strong>并行</strong>：同时跑，但坏请求会白烧一次核心调用。
+</div>
+</div>
+
+<!-- 4 -->
+<div class="pattern">
+<h2>4. Orchestrator-Workers <span class="pattern-tag">编排者-工人</span></h2>
+<div class="diagram">         ┌→ worker(子任务1) ┐
+输入→编排者┼→ worker(子任务2) ┼→ 编排者综合 → 输出
+         └→ worker(子任务?) ┘  ← 数量/内容运行时才定</div>
+<p><span class="when">何时用：</span>复杂任务且<strong>子任务无法预先预测</strong>——要几个子任务、各干什么，看具体输入才知道。中心 LLM 动态拆解、分派、综合。</p>
+<p><strong>与并行化的关键区别：</strong>拓扑相似，但并行化的子任务是<strong>你预先切好的</strong>；这里是编排者<strong>运行时临时决定的</strong>。</p>
+<p><strong>例子：</strong><strong>编码任务</strong>（改几个文件、怎么改取决于需求，没法写死）；跨多来源搜集分析的搜索任务。</p>
+</div>
+
+<!-- 5 -->
+<div class="pattern">
+<h2>5. Evaluator-Optimizer <span class="pattern-tag">评估者-优化者</span></h2>
+<div class="diagram">生成器 → 结果 → 评估器 ─满意─→ 输出
+  ↑______反馈(不满意，附改进意见)__│</div>
+<p><span class="when">何时用：</span>满足两条件：(1) 有<strong>清晰的评估标准</strong>；(2) 迭代改进能带来可衡量提升。信号：人给反馈能明显改进结果，且 LLM 也能给出这种反馈。类比人类反复修改文章。</p>
+<p><strong>例子：</strong>文学翻译（初译漏语感，评估者批评后再改）；需多轮搜索分析的复杂检索（评估者判断是否再搜）。</p>
+</div>
+
+<h2>选择表</h2>
+<table>
+  <tr><th>你的任务特征</th><th>用哪个</th></tr>
+  <tr><td>能拆成固定顺序的几步</td><td>Prompt Chaining</td></tr>
+  <tr><td>有明显不同类别、要分开处理</td><td>Routing</td></tr>
+  <tr><td>子任务预先可切、彼此独立</td><td>Parallelization · Sectioning</td></tr>
+  <tr><td>同一任务想多跑几次求稳</td><td>Parallelization · Voting</td></tr>
+  <tr><td>子任务运行时才知道有哪些</td><td>Orchestrator-Workers</td></tr>
+  <tr><td>有明确标准、值得反复打磨</td><td>Evaluator-Optimizer</td></tr>
+</table>
+
+<h2>贯穿全文的三条心法</h2>
+<div class="key">
+<ol style="margin:0; padding-left:1.2rem">
+  <li><strong>能简单就别复杂</strong> — 先试最简单方案（优化单次调用 + 检索 + 示例）。很多应用不需要 workflow，更不需要 agent。</li>
+  <li><strong>workflow vs agent 的取舍</strong> — workflow 给可预测性和一致性（定义明确的任务）；agent 给灵活性和自主决策（开放式、步骤不可预测），代价是更高成本与错误累积。</li>
+  <li><strong>只在"可衡量地改善结果"时才加复杂度</strong> — 这些模式是可组合、可裁剪的套路，不是教条。</li>
+</ol>
+</div>
+
+<div class="aside">
+<strong>对写 coding agent 的启发：</strong>
+Orchestrator-Workers 被文档直接点名"编码产品"是典型场景（改几个文件、怎么改运行时才定）。
+Evaluator-Optimizer 的"生成→评估→反馈→再生成"循环已很接近 agent loop —— 区别在 workflow 的循环结构是你写死的，
+agent 的循环由模型自己驱动。
+</div>
+
+<div class="primary-source">
+  <div class="label">来源</div>
+  <p style="margin:0.5rem 0 0">
+  <a href="https://www.anthropic.com/research/building-effective-agents">Anthropic — Building Effective Agents</a><br>
+  <span style="font-size:0.9rem;color:var(--ink-soft)">本卡是该文 "Building blocks, workflows, and agents" 一节的压缩。示例代码见
+  <a href="https://platform.claude.com/cookbook/patterns-agents-basic-workflows">Anthropic Cookbook</a>。</span>
+  </p>
+</div>
+
+<div class="ask-teacher">
+  <strong>想深入某个模式？</strong> 回到对话问我。比如"orchestrator-workers 用 TS 大概怎么写"、
+  "evaluator-optimizer 和 agent loop 到底差在哪"。
+</div>
+
+<div class="lesson-nav">
+  <span>· Reference ·</span>
+  <span>相关课程：L02 Workflow vs Agent</span>
+</div>
+
+</body>
+</html>

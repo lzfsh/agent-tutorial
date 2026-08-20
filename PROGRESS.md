@@ -29,10 +29,12 @@
 - ✅ **L01 — Agent Loop 的本质**　`lessons/0001-agent-loop-the-essence.html`
   - 核心：agent = LLM 在循环里根据环境反馈调用工具。控制权在你的代码，不在模型。
   - 状态：**已发布，待你学习**（做完 3 道回忆题后回来告诉我结果）
-- ⬜ **L02 — Workflow vs Agent：何时才真需要循环**
-  - 计划核心：Anthropic 的关键区分——预定义代码路径(workflow) vs 模型自主决定流程(agent)；
-    先用最简方案，别过早上循环。认识 5 种可组合模式（chaining/routing/parallelization/
-    orchestrator-workers/evaluator-optimizer）。
+- ✅ **L02 — Workflow vs Agent：何时才真需要循环**　`lessons/0002-workflow-vs-agent.html`
+  - 核心：分界线是「下一步谁决定」——代码预定义(workflow) vs 模型动态决定(agent)；复杂度阶梯
+    （单次调用 → workflow → agent），能简单就别复杂；coding agent 属真正的 agent。
+  - 📄 配套参考：[`reference/workflow-patterns.html`](./reference/workflow-patterns.html)
+    —— 5 种 workflow 模式速查卡（含结构图、选择表、三条心法）。
+  - 状态：**已发布，待你学习**（4 道回忆题）
 - ⬜ **L03 — Coding agent 的解剖：大脑 vs 环境 vs 前端**
   - 计划核心：用 tau 的三层划分（harness=可复用大脑 / session=coding 环境 / TUI=前端）
     建立"分层"心智，为后面读源码和自己动手打框架。
@@ -102,3 +104,5 @@
 | 日期 | 课程 | 结果 / 备注 |
 | --- | --- | --- |
 | 2026-08-19 | 建立工作区、规划路线、发布 L01 | 资源已核实；L01 待学习 |
+| 2026-08-19 | 讨论 workflow 五模式、护栏并行/串行、省钱权衡 | 通过实际提问啃透 workflow 部分；产出速查卡 |
+| 2026-08-19 | 发布 workflow 速查卡 + L02 | `reference/workflow-patterns.html`、`lessons/0002` |
